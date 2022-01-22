@@ -1,4 +1,24 @@
-# decimate
+# go-decim
+
+Decimate xy data using `Sampler` type.
+
+```go
+    // xyer implements the plot.XYer interface from gonum/plot.
+    xyer := newXYer()
+	s := NewSampler(xyer, 1)
+    // Accumulate downsampled values.
+	var xs, ys []float64
+	var x, y float64
+    // Ends on io.EOF receive or if NaN/inf value encountered
+	for ; err == nil; x, y, err = s.Next() {
+		xs = append(xs, x)
+		ys = append(ys, y)
+	}
+```
+
+
+
+## Decimate - CSV processing
 
 Need to graph a curve obtained through a simulation and the amount of points makes pgfplots run out of memory? Or do you simply want to reduce the size of your vector graphics?
 ---
