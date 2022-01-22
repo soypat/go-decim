@@ -20,8 +20,8 @@ Decimate xy data using `Sampler` type.
 
 ## Decimate - CSV processing
 
-Need to graph a curve obtained through a simulation and the amount of points makes pgfplots run out of memory? Or do you simply want to reduce the size of your vector graphics?
----
+_Need to graph a curve obtained through a simulation and the amount of points makes pgfplots run out of memory? Or do you simply want to reduce the size of your vector graphics?_
+
 Decimate will reduce the amount of points on your curve drastically while maintaining visual fidelity.
 
 ### Decimate is run from command line
