@@ -34,53 +34,100 @@ func NewSampler(xyer XYer, tol float64) *Sampler {
 		panic("need at least 3 points to downsample")
 	}
 	// We initialize x and y values
-	x, y := xyer.XY(0)
 	s := &Sampler{
-		idx:   1,
-		tol:   tol,
-		xPrev: x, yPrev: y,
-		xPivot: x, yPivot: y,
+		tol:  tol,
 		xyer: xyer,
 	}
+	s.Reset()
 	// and also calculate initial permissible max angles line should be contained in.
 	s.setStartAngleLims()
 	return s
 }
 
-func (a *Sampler) setStartAngleLims() {
-	x, y := a.xyer.XY(a.idx)
-	dx, dy := x-a.xPivot, y-a.yPivot
-	a.angleMax = math.Atan2(dy+a.tol, dx)
-	a.angleMin = math.Atan2(dy-a.tol, dx)
+// Reset sets the sampler to initial value.
+func (s *Sampler) Reset() {
+	x, y := s.xyer.XY(0)
+	s.idx = 1
+	s.xPrev = x
+	s.yPrev = y
+	s.xPivot = x
+	s.yPivot = y
 }
 
-func (a *Sampler) Next() (x, y float64, err error) {
-	n := a.xyer.Len()
-	for a.idx < n {
-		x, y = a.xyer.XY(a.idx)
-		a.idx++
-		dx, dy := x-a.xPivot, y-a.yPivot
+func (s *Sampler) Next() (x, y float64, err error) {
+	n := s.xyer.Len()
+	for s.idx < n {
+		x, y = s.xyer.XY(s.idx)
+		s.idx++
+		if s.idx == n {
+			// Return last data without modification.
+			return x, y, nil
+		}
+		dx, dy := x-s.xPivot, y-s.yPivot
 		actualAngle := math.Atan2(dy, dx)
 		if math.IsNaN(actualAngle) || math.IsInf(actualAngle, 0) {
 			return 0, 0, errors.New("got infinity or NaN")
 		}
-		if !(actualAngle > a.angleMin) || !(actualAngle < a.angleMax) {
+		if !(actualAngle > s.angleMin) || !(actualAngle < s.angleMax) {
 			// The angle of the line exceeded permissible angle range.
-			if a.Interp {
-				a.yPivot = a.yPivot + (a.xPrev-a.xPivot)*(math.Tan(a.angleMax)+math.Tan(a.angleMin))/2 // interpolator
+			if s.Interp {
+				s.yPivot = s.yPivot + (s.xPrev-s.xPivot)*(math.Tan(s.angleMax)+math.Tan(s.angleMin))/2 // interpolator
 			} else {
-				a.yPivot = a.yPrev
+				s.yPivot = s.yPrev
 			}
-			a.xPivot, a.xPrev, a.yPrev = a.xPrev, x, y
-			a.setStartAngleLims()
+			s.xPivot, s.xPrev, s.yPrev = s.xPrev, x, y
+			s.setStartAngleLims()
 			return x, y, nil
 		}
 		// We update the angle limits based on new point.
-		loangle, hiangle := math.Atan2(dy-a.tol, dx), math.Atan2(dy+a.tol, dx)
-		a.angleMin = math.Max(loangle, a.angleMin)
-		a.angleMax = math.Min(hiangle, a.angleMax)
-		a.xPrev = x
-		a.yPrev = y
+		loangle, hiangle := math.Atan2(dy-s.tol, dx), math.Atan2(dy+s.tol, dx)
+		s.angleMin = math.Max(loangle, s.angleMin)
+		s.angleMax = math.Min(hiangle, s.angleMax)
+		s.xPrev = x
+		s.yPrev = y
 	}
 	return x, y, io.EOF
+}
+
+func (s *Sampler) setStartAngleLims() {
+	if s.idx >= s.xyer.Len() {
+		// Out of range. Stream is exhausted.
+		return
+	}
+	x, y := s.xyer.XY(s.idx)
+	dx, dy := x-s.xPivot, y-s.yPivot
+	s.angleMax = math.Atan2(dy+s.tol, dx)
+	s.angleMin = math.Atan2(dy-s.tol, dx)
+}
+
+// XYer processes xyer argument data and returns the downsampled data
+func (s *Sampler) XYer() XYer {
+	s.Reset()
+	v := &sliceXYer{}
+	var err error
+	var x, y float64
+	for {
+		x, y, err = s.Next()
+		if err != nil {
+			break
+		}
+		v.x = append(v.x, x)
+		v.y = append(v.y, y)
+	}
+	if !errors.Is(err, io.EOF) {
+		panic(err)
+	}
+	return v
+}
+
+type sliceXYer struct {
+	x, y []float64
+}
+
+func (s *sliceXYer) XY(i int) (x, y float64) {
+	return s.x[i], s.y[i]
+}
+
+func (s *sliceXYer) Len() int {
+	return len(s.x)
 }
