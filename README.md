@@ -16,7 +16,11 @@ Decimate xy data using `Sampler` type.
     }
 ```
 
-
+Comparison with [go-lttb](https://github.com/dgryski/go-lttb) shows this algorithm (Rolling X) is considerably slower.
+```
+BenchmarkLTTB-8       	   21183	     52009 ns/op	   16384 B/op	       1 allocs/op
+BenchmarkRollingX-8   	    4556	    263429 ns/op	     120 B/op	       2 allocs/op
+```
 
 ## Decimate - CSV processing
 
